@@ -1,0 +1,27 @@
+{
+  "description": "adash: inject the reporting discipline at session start, and deliver dashboard back-channel messages into the worker.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/session-inject.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/drain-inbox.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "adash",
+  "owner": {
+    "name": "MilkClouds"
+  },
+  "metadata": {
+    "description": "Agent status dashboard for Claude Code sessions.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "adash",
+      "description": "Workers report, a cheap model tidies the reports into cards, a web UI shows them, with a back-channel to intervene.",
+      "version": "0.1.0",
+      "author": {
+        "name": "MilkClouds"
+      },
+      "source": "./plugins/adash"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+# runtime data lives outside the repo (default ~/.agent-dashboard)
+*.log
+node_modules/
+.DS_Store
+*.tmp

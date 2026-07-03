@@ -1,0 +1,8 @@
+{
+  "name": "adash",
+  "version": "0.1.0",
+  "description": "Agent status dashboard: workers report, a cheap model tidies the reports into cards, a web UI shows them, with a back-channel to intervene.",
+  "author": {
+    "name": "MilkClouds"
+  }
+}

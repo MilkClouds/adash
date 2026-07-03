@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Dashboard</title>
+<style>
+  :root{ --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --bd:#2a2f3a; --tx:#e6e8ec; --dim:#9aa3b2; --acc:#6ea8fe; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 ui-sans-serif,system-ui,"Apple SD Gothic Neo",sans-serif}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg);z-index:5}
+  header h1{font-size:15px;margin:0;font-weight:600} header .meta{color:var(--dim);font-size:12px}
+  .wrap{display:grid;grid-template-columns:1fr 360px;gap:16px;padding:16px;align-items:start}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:12px 14px}
+  .card h3{margin:0 0 2px;font-size:14px;font-weight:600;word-break:break-word}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .badge{font-size:11px;padding:1px 8px;border-radius:999px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .st-active{background:#12351f;color:#5fe08a} .st-waiting,.st-pending{background:#33300f;color:#f0d264}
+  .st-blocked{background:#3a1520;color:#ff7a94} .st-done{background:#22252d;color:#9aa3b2}
+  .age{color:var(--dim);font-size:12px;margin-left:auto} .stale{opacity:.5}
+  .body h4{margin:10px 0 3px;font-size:12px;color:var(--acc);text-transform:uppercase;letter-spacing:.04em}
+  .body p{margin:2px 0} .body ul{margin:2px 0 2px 0;padding-left:18px} .body li{margin:1px 0}
+  .send{display:flex;gap:6px;margin-top:10px;border-top:1px dashed var(--bd);padding-top:8px}
+  .send input{flex:1;background:var(--panel2);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:6px 8px;font:inherit}
+  .send button,.consult button{background:var(--acc);border:0;color:#04122e;font-weight:600;border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit}
+  .side .panel{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:12px 14px}
+  .side h2{font-size:13px;margin:0 0 10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+  .consult{background:var(--panel2);border:1px solid #3a2f18;border-left:3px solid #f0d264;border-radius:8px;padding:9px 11px;margin-bottom:9px}
+  .consult .q{font-weight:600;margin:2px 0 6px;white-space:pre-wrap;word-break:break-word}
+  .consult .m{color:var(--dim);font-size:12px;display:flex;gap:8px;align-items:center}
+  .consult button{background:#f0d264;color:#2a2205;padding:3px 9px;font-size:12px;margin-left:auto}
+  .empty{color:var(--dim);font-size:13px;padding:6px 0}
+  .dot{width:7px;height:7px;border-radius:50%;background:#3ad07a;display:inline-block} .off{background:#ff7a94}
+</style>
+</head>
+<body>
+<header>
+  <h1>🛰️ Agent Dashboard</h1>
+  <span class="meta"><span id="conn" class="dot off"></span> <span id="wc">0</span> workers, <span id="cc">0</span> open consults</span>
+  <span class="meta" style="margin-left:auto" id="clock"></span>
+</header>
+<div class="wrap">
+  <main><div class="grid" id="workers"></div><div class="empty" id="wempty">No workers reporting yet. A worker appears here once it runs <code>adash report</code>.</div></main>
+  <aside class="side"><div class="panel"><h2>⚠ Open decisions (consult)</h2><div id="consults"></div><div class="empty" id="cempty">No open consults.</div></div></aside>
+</div>
+<script>
+const seen = new Set(); let primed = false;
+function ago(ms){ const s=Math.round(ms/1000); if(s<60)return s+'s'; const m=Math.round(s/60); if(m<60)return m+'m'; const h=Math.round(m/60); return h<24?h+'h':Math.round(h/24)+'d'; }
+function esc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function md(body){ // tiny markdown: ## -> h4, - bullets -> ul, else p
+  const out=[]; let ul=false;
+  for(const raw of (body||'').split('\n')){ const l=raw.trimEnd();
+    if(/^##\s+/.test(l)){ if(ul){out.push('</ul>');ul=false;} out.push('<h4>'+esc(l.replace(/^##\s+/,''))+'</h4>'); }
+    else if(/^-\s+/.test(l)){ if(!ul){out.push('<ul>');ul=true;} out.push('<li>'+esc(l.replace(/^-\s+/,''))+'</li>'); }
+    else if(l.trim()===''){ if(ul){out.push('</ul>');ul=false;} }
+    else { if(ul){out.push('</ul>');ul=false;} out.push('<p>'+esc(l)+'</p>'); }
+  } if(ul)out.push('</ul>'); return out.join('');
+}
+function beep(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(),g=a.createGain();
+  o.type='sine';o.frequency.value=880;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.001,a.currentTime);
+  g.gain.exponentialRampToValueAtTime(.25,a.currentTime+.01);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.4);
+  o.start();o.stop(a.currentTime+.4);}catch(e){} }
+async function send(sid,inp){ const t=inp.value.trim(); if(!t)return; inp.value=''; inp.disabled=true;
+  await fetch('/inbox/'+encodeURIComponent(sid),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t})}).catch(()=>{});
+  inp.disabled=false; inp.placeholder='sent ✓'; setTimeout(()=>inp.placeholder='message this worker...',1500); }
+async function resolve(sid,id){ await fetch('/resolve/'+encodeURIComponent(sid)+'/'+encodeURIComponent(id),{method:'POST'}).catch(()=>{}); tick(); }
+function workerCard(w){
+  const stale = w.ageMs>180000 && !w.pending;
+  const el=document.createElement('div'); el.className='card'+(stale?' stale':'');
+  el.innerHTML=`<div class="row"><span class="badge st-${w.status}">${esc(w.status)}</span>
+    <span class="age">${w.pending?'':'updated '+ago(w.ageMs)+' ago'}</span></div>
+    <h3>${esc(w.headline)||'<span style=color:#9aa3b2>...</span>'}</h3>
+    <div class="body">${md(w.body)}</div>
+    <div class="send"><input placeholder="message this worker..." /><button>Send</button></div>
+    <div style="color:#4b525f;font-size:11px;margin-top:6px">${esc(w.sid)}</div>`;
+  const inp=el.querySelector('input'), btn=el.querySelector('button');
+  btn.onclick=()=>send(w.sid,inp); inp.onkeydown=e=>{if(e.key==='Enter')send(w.sid,inp);};
+  return el;
+}
+async function tick(){
+  let s; try{ s=await (await fetch('/state.json')).json(); document.getElementById('conn').className='dot'; }
+  catch(e){ document.getElementById('conn').className='dot off'; return; }
+  document.getElementById('clock').textContent=new Date(s.now).toLocaleTimeString();
+  document.getElementById('wc').textContent=s.workers.length;
+  document.getElementById('cc').textContent=s.consults.length;
+  const wrap=document.getElementById('workers'); wrap.innerHTML='';
+  document.getElementById('wempty').style.display=s.workers.length?'none':'block';
+  for(const w of s.workers) wrap.appendChild(workerCard(w));
+  const cw=document.getElementById('consults'); cw.innerHTML='';
+  document.getElementById('cempty').style.display=s.consults.length?'none':'block';
+  for(const c of s.consults){
+    const key=c.sid+':'+c.id;
+    if(primed && !seen.has(key)) beep();
+    seen.add(key);
+    const el=document.createElement('div'); el.className='consult';
+    el.innerHTML=`<div class="m"><b>${esc(c.project)}</b><span>${ago(c.ageMs)} ago</span><button>resolve</button></div>
+      <div class="q">${esc(c.q)}</div>`;
+    el.querySelector('button').onclick=()=>resolve(c.sid,c.id);
+    cw.appendChild(el);
+  }
+  primed=true;
+}
+tick(); setInterval(tick,1500);
+</script>
+</body>
+</html>
