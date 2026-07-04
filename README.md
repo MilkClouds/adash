@@ -87,7 +87,7 @@ server symlink, remove it with `rm ~/.local/bin/adash`.
 ## Requirements
 
 - Node 18 or newer, `jq`, and the `codex` CLI (logged in, with a cheap model such as `gpt-5.4-mini`)
-- Optional: a Discord relay at `~/.claude/hooks/discord-notification.sh` for consult pings
+- Optional: consult pings. Set `ADASH_DISCORD_WEBHOOK` (or write the URL to `~/.agent-dashboard/discord-webhook`), and optionally `ADASH_DISCORD_MENTION=<user-id>` for a phone push. Or set `ADASH_NOTIFY_CMD` to route the message (run as `"$ADASH_NOTIFY_CMD" "<message>"`) anywhere else. With none set, consults still appear on the dashboard.
 - Sessions are identified by `$CODEX_COMPANION_SESSION_ID` (set by the codex Claude Code plugin)
 
 ## Layout

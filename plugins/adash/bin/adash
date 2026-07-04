@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # adash: agent-dashboard client + server launcher.
 #   adash report  "<one line status>"   append a status report (server's Manager improves it)
-#   adash consult "<decision question>" append a decision + ping the researcher on Discord
+#   adash consult "<decision question>" append a decision + ping the researcher (notify config below)
 #   adash serve                         start the dashboard server (this stays running)
 set -euo pipefail
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
@@ -11,6 +11,29 @@ PORT="${AGENT_DASHBOARD_PORT:-4319}"
 sub="${1:-}"; shift 2>/dev/null || true
 
 poke(){ curl -s -m 1 -X POST "http://127.0.0.1:$PORT/poke/$1" >/dev/null 2>&1 || true; }
+
+# consult ping, self-contained (no dependency on any personal Claude Code hook).
+# Configure ONE of:
+#   ADASH_NOTIFY_CMD       run as: "$ADASH_NOTIFY_CMD" "<message>"   (route to anything)
+#   ADASH_DISCORD_WEBHOOK  (or a "$DATA/discord-webhook" file)       post to Discord directly;
+#                          optional ADASH_DISCORD_MENTION=<user-id> prepends <@id> for a phone push.
+# If none is set there is no external ping (the dashboard still shows the consult).
+notify(){
+  local msg="$1" url=""
+  if [ -n "${ADASH_NOTIFY_CMD:-}" ]; then
+    "$ADASH_NOTIFY_CMD" "$msg" >/dev/null 2>&1 || true
+    return 0
+  fi
+  url="${ADASH_DISCORD_WEBHOOK:-}"
+  if [ -z "$url" ] && [ -f "$DATA/discord-webhook" ]; then
+    url="$(cat "$DATA/discord-webhook" 2>/dev/null || true)"
+  fi
+  [ -n "$url" ] || return 0
+  if [ -n "${ADASH_DISCORD_MENTION:-}" ]; then msg="<@${ADASH_DISCORD_MENTION}> $msg"; fi
+  jq -nc --arg c "$msg" '{content:$c}' \
+    | curl -s -m 5 -H "Content-Type: application/json" --data-binary @- "$url" >/dev/null 2>&1 || true
+  return 0
+}
 
 case "$sub" in
   serve)
@@ -28,12 +51,7 @@ case "$sub" in
     else
       jq -cn --arg q "$text" --arg cwd "$PWD" --argjson ts "$ts" --arg id "$ts" \
         '{kind:"consult", id:$id, ts:$ts, cwd:$cwd, q:$q}' >> "$DATA/feed/$sid.jsonl"
-      relay="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/discord-notification.sh"
-      if [ -x "$relay" ]; then
-        jq -nc --arg sid "$sid" --arg m "consult: $text" --arg tp "${CODEX_COMPANION_TRANSCRIPT_PATH:-}" \
-          '{notification_type:"consult", session_id:$sid, message:$m, title:"consult", transcript_path:$tp}' \
-          | "$relay" >/dev/null 2>&1 || true
-      fi
+      notify "adash consult: $text"
       poke "$sid"; echo "consult logged, researcher pinged. Keep going on anything not blocked by this."
     fi ;;
   ''|-h|--help|help)
