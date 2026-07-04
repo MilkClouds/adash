@@ -1,6 +1,6 @@
 ---
 name: adash
-description: Reference for the adash agent dashboard. Use when the user or agent asks how to report status to the dashboard, surface a decision to the researcher, run the dashboard server, or what adash report/consult/serve do.
+description: Report an agent's progress and surface its decisions to a researcher watching the session, through the adash tool (adash report, adash consult, adash serve). Use this skill whenever a worker or user wants to log or report a finished step, checkpoint, or status to a dashboard someone is monitoring, tell or notify or update whoever is watching the session, raise a decision or fork or tradeoff and ask the observer which way to go, or start or run or view the agent dashboard server. Trigger even when the request only mentions a dashboard, reporting progress, letting the researcher know, or asking the person watching, and even when it never says adash by name. Do not trigger for building data-visualization or monitoring dashboards such as React, Grafana, or sales charts, for writing a status-report document, for adding a status column, for reporting a software bug, or for the user asking for your own opinion.
 ---
 
 # adash
