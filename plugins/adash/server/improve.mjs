@@ -38,7 +38,7 @@ const clip = (s,n=CLIP)=>{ s=String(s??''); return s.length>n ? s.slice(0,n)+`..
 const hhmm = ts=>{ const d=new Date(Number(ts)); return isNaN(d.getTime())?'--:--':d.toISOString().slice(11,16); };
 const events = newLines.slice(-MAX_NEW).map(l=>{
   let o; try{ o=JSON.parse(l); }catch{ return null; }
-  return o.kind==='consult' ? `[${hhmm(o.ts)} CONSULT] ${clip(o.q)}` : `[${hhmm(o.ts)} report] ${clip(o.text)}`;
+  return `[${hhmm(o.ts)} report] ${clip(o.text)}`;
 }).filter(Boolean).join('\n');
 
 const prior = existsSync(cardFile) ? readFileSync(cardFile,'utf8') : '(none, create the first card)';
@@ -51,7 +51,6 @@ Output the FULL updated card and NOTHING else. Write the entire card in plain En
 - Body sections in order:
   "## Now": 1-3 lines, current focus.
   "## History": newest first, at most 8 bullets, each "HH:MM  fact"; merge or drop the oldest to stay at 8.
-  "## Open decision": if there is an unresolved CONSULT, summarize its context in 1-2 lines; else write "none".
   "## Needs from you": the worker reports tersely and vaguely. If a report mentions something concrete but omits detail a researcher would want (e.g. "ran a sweep" without how many configs or which model; "results look off" without which metric or the actual numbers; "reduced batch" without whether it helped), ask ONE short specific question as a bullet. At most 2 bullets, only when the answer would materially improve the card; else write "none".
 - Keep the whole card under about 2500 characters. This card is your only memory: compress, preserve durable facts (goal, decisions, blockers) from the prior card, drop stale minutiae.
 - Improve clarity and structure of the worker's reports, but NEVER invent facts. If something important is missing, do NOT guess; ask for it under "## Needs from you".

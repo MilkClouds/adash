@@ -2,7 +2,7 @@
 // Agent dashboard server: the single always-on process.
 //  - serves the dashboard UI + /state.json
 //  - watches feed/ and runs the Manager (improve.mjs) per session (cap N, per-sid serial)
-//  - POST /inbox/<sid> (human intervention), /resolve/<sid>/<id>, /poke/<sid>
+//  - POST /inbox/<sid> (human intervention), /poke/<sid>
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, appendFileSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -15,19 +15,12 @@ const HOST = process.env.AGENT_DASHBOARD_HOST || '127.0.0.1';
 const MAXN = Number(process.env.MGR_CONCURRENCY || 2);
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const improvePath = path.join(HERE, 'improve.mjs');
-const stateFile = path.join(DASH, 'web', 'state.json');
-for (const d of ['feed','cards','inbox','tmp','web']) mkdirSync(path.join(DASH,d), {recursive:true});
+for (const d of ['feed','cards','inbox','tmp']) mkdirSync(path.join(DASH,d), {recursive:true});
 
 const sidRe = /^[A-Za-z0-9._-]+$/;
 const rd = f => { try { return readFileSync(f,'utf8'); } catch { return ''; } };
 const lines = s => s.split('\n').filter(Boolean);
-const jparse = l => { try { return JSON.parse(l); } catch { return null; } };
 const listSids = dir => { try { return readdirSync(path.join(DASH,dir)).filter(f=>f.endsWith('.jsonl')||f.endsWith('.md')).map(f=>f.replace(/\.(jsonl|md)$/,'')).filter(s=>sidRe.test(s)); } catch { return []; } };
-
-// ---- persistent state (resolved consults) ----
-let state = { resolved: {} };
-try { state = JSON.parse(rd(stateFile)) || state; } catch {}
-const saveState = () => { try { writeFileSync(stateFile, JSON.stringify(state)); } catch {} };
 
 // ---- Manager scheduler: feed lines > watermark -> run improve (cap N, per-sid serial) ----
 const running = new Set();
@@ -71,19 +64,7 @@ function buildState(){
   for (const sid of listSids('feed')) if (!cardSids.has(sid))
     workers.push({ sid, status:'pending', headline:'(tidying first report)', body:'', ageMs:0, pending:true });
   workers.sort((a,b)=>a.ageMs-b.ageMs);
-
-  const consults = [];
-  for (const sid of listSids('feed')){
-    let project = sid;
-    for (const l of lines(rd(path.join(DASH,'feed',`${sid}.jsonl`)))){
-      const o = jparse(l); if (!o) continue;
-      if (o.cwd) project = path.basename(o.cwd);
-      if (o.kind==='consult' && !state.resolved[`${sid}:${o.id}`])
-        consults.push({ sid, id:o.id, q:o.q, ts:o.ts, project, ageMs: now-Number(o.ts) });
-    }
-  }
-  consults.sort((a,b)=>b.ts-a.ts);
-  return { now, workers, consults };
+  return { now, workers };
 }
 
 // ---- HTTP ----
@@ -106,10 +87,6 @@ createServer(async (req,res)=>{
         appendFileSync(path.join(DASH,'inbox',`${m[1]}.jsonl`),
           JSON.stringify({kind:'message', ts:Date.now(), from:'researcher', text:String(text).trim()})+'\n');
       }
-      return send(res,200,'application/json','{"ok":true}');
-    }
-    if (req.method==='POST' && (m=p.match(/^\/resolve\/([^/]+)\/([^/]+)$/)) && sidRe.test(m[1])){
-      state.resolved[`${m[1]}:${m[2]}`] = true; saveState();
       return send(res,200,'application/json','{"ok":true}');
     }
     if (req.method==='POST' && (m=p.match(/^\/poke\/([^/]+)$/)) && sidRe.test(m[1])){

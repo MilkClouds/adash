@@ -2,17 +2,16 @@
 
 A minimal status dashboard for Claude Code agent sessions, packaged as a Claude Code plugin.
 
-Terse agents (for example fable5) rarely say what they are doing or surface the decisions they
-should ask about. `adash` gives each worker session a one-line way to report, has a cheap model tidy
-those reports into a readable card, shows everything on a local web page, and lets you send a message
-back into a running worker without switching to its terminal.
+Terse agents (for example fable5) rarely say what they are doing. `adash` gives each worker session a
+one-line way to report, has a cheap model tidy those reports into a readable card, shows everything on
+a local web page, and lets you send a message back into a running worker without switching to its
+terminal.
 
 ## How it works
 
 ```
-report:  worker --( adash report )-->  feed  --( codex manager )-->  card  ---\
+report:  worker --( adash report )-->  feed  --( codex manager )-->  card  --> web UI
                                                      \--( missing detail )--> inbox --> worker
-consult: worker --( adash consult )--> feed  + Discord push to the researcher ----\-->  web UI
 inbox:   web UI  --( type a message )-->  inbox  --( PostToolUse hook )-->  worker context
 ```
 
@@ -20,9 +19,8 @@ inbox:   web UI  --( type a message )-->  inbox  --( PostToolUse hook )-->  work
 - A manager (`codex exec` with a cheap model, default `gpt-5.4-mini`) rewrites each report into a
   clear per-session card. If a report is too vague, the manager asks the worker one specific question
   through the back-channel instead of guessing.
-- `adash consult` records a decision verbatim and pings the researcher immediately.
-- The dashboard shows all cards plus open consults, and has a box per worker to inject a message into
-  that worker's next step.
+- The dashboard shows all cards, and has a box per worker to inject a message into that worker's next
+  step.
 
 The manager reads only the worker's short reports plus the prior card, never the full transcript, so
 cost stays around a fraction of a cent per report.
@@ -37,8 +35,8 @@ cost stays around a fraction of a cent per report.
 Installing wires the session side automatically, with no edit to your CLAUDE.md or settings.json:
 
 - `adash` is placed on the session's shell PATH (from the plugin `bin/`).
-- A SessionStart hook injects the reporting instruction (report at breakpoints, consult at decisions)
-  as standing context.
+- A SessionStart hook injects the reporting instruction (report at natural breakpoints) as standing
+  context.
 - A PostToolUse hook delivers dashboard messages back into the worker.
 - A skill provides on-demand help.
 
@@ -60,8 +58,8 @@ Or without a symlink: `node ~/GitHub/adash/plugins/adash/server/server.mjs`.
 ## Use (inside a worker session)
 
 ```
-adash report  "started 12-layer transformer run, data roughly prepared"
-adash consult "AdamW vs Lion for the 7B run? Lion saves memory but is unproven at this scale"
+adash report "started 12-layer transformer run, data roughly prepared"
+adash report "epoch 3 done, val loss 0.42, moving to fine-tune"
 ```
 
 ## Configuration (environment)
@@ -87,7 +85,6 @@ server symlink, remove it with `rm ~/.local/bin/adash`.
 ## Requirements
 
 - Node 18 or newer, `jq`, and the `codex` CLI (logged in, with a cheap model such as `gpt-5.4-mini`)
-- Optional: consult pings. Set `ADASH_DISCORD_WEBHOOK` (or write the URL to `~/.agent-dashboard/discord-webhook`), and optionally `ADASH_DISCORD_MENTION=<user-id>` for a phone push. Or set `ADASH_NOTIFY_CMD` to route the message (run as `"$ADASH_NOTIFY_CMD" "<message>"`) anywhere else. With none set, consults still appear on the dashboard.
 - Sessions are identified by `$CODEX_COMPANION_SESSION_ID` (set by the codex Claude Code plugin)
 
 ## Layout
@@ -96,7 +93,7 @@ server symlink, remove it with `rm ~/.local/bin/adash`.
 .claude-plugin/marketplace.json    marketplace listing
 plugins/adash/
   .claude-plugin/plugin.json       plugin manifest
-  bin/adash                        client and server launcher (report / consult / serve)
+  bin/adash                        client and server launcher (report / serve)
   hooks/hooks.json                 SessionStart inject + PostToolUse back-channel
   hooks/session-inject.sh          injects the reporting instruction at session start
   hooks/drain-inbox.sh             delivers dashboard messages into the worker

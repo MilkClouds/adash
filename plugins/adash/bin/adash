@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # adash: agent-dashboard client + server launcher.
-#   adash report  "<one line status>"   append a status report (server's Manager improves it)
-#   adash consult "<decision question>" append a decision + ping the researcher (notify config below)
+#   adash report "<one line status>"    append a status report (server's Manager improves it)
 #   adash serve                         start the dashboard server (this stays running)
 set -euo pipefail
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
@@ -12,53 +11,22 @@ sub="${1:-}"; shift 2>/dev/null || true
 
 poke(){ curl -s -m 1 -X POST "http://127.0.0.1:$PORT/poke/$1" >/dev/null 2>&1 || true; }
 
-# consult ping, self-contained (no dependency on any personal Claude Code hook).
-# Configure ONE of:
-#   ADASH_NOTIFY_CMD       run as: "$ADASH_NOTIFY_CMD" "<message>"   (route to anything)
-#   ADASH_DISCORD_WEBHOOK  (or a "$DATA/discord-webhook" file)       post to Discord directly;
-#                          optional ADASH_DISCORD_MENTION=<user-id> prepends <@id> for a phone push.
-# If none is set there is no external ping (the dashboard still shows the consult).
-notify(){
-  local msg="$1" url=""
-  if [ -n "${ADASH_NOTIFY_CMD:-}" ]; then
-    "$ADASH_NOTIFY_CMD" "$msg" >/dev/null 2>&1 || true
-    return 0
-  fi
-  url="${ADASH_DISCORD_WEBHOOK:-}"
-  if [ -z "$url" ] && [ -f "$DATA/discord-webhook" ]; then
-    url="$(cat "$DATA/discord-webhook" 2>/dev/null || true)"
-  fi
-  [ -n "$url" ] || return 0
-  if [ -n "${ADASH_DISCORD_MENTION:-}" ]; then msg="<@${ADASH_DISCORD_MENTION}> $msg"; fi
-  jq -nc --arg c "$msg" '{content:$c}' \
-    | curl -s -m 5 -H "Content-Type: application/json" --data-binary @- "$url" >/dev/null 2>&1 || true
-  return 0
-}
-
 case "$sub" in
   serve)
     exec node "$ROOT/server/server.mjs" "$@" ;;
-  report|consult)
+  report)
     sid="${CODEX_COMPANION_SESSION_ID:-}"
     case "$sid" in ''|*[!A-Za-z0-9._-]*) echo "adash: no or invalid session id (CODEX_COMPANION_SESSION_ID)" >&2; exit 1;; esac
     text="${*:-}"
-    [ -n "$text" ] || { echo "usage: adash $sub \"<text>\"" >&2; exit 1; }
+    [ -n "$text" ] || { echo 'usage: adash report "<one line status>"' >&2; exit 1; }
     mkdir -p "$DATA/feed"; ts="$(date +%s%3N)"
-    if [ "$sub" = report ]; then
-      jq -cn --arg t "$text" --arg cwd "$PWD" --argjson ts "$ts" \
-        '{kind:"report", ts:$ts, cwd:$cwd, text:$t}' >> "$DATA/feed/$sid.jsonl"
-      poke "$sid"; echo "report logged, manager is tidying it up"
-    else
-      jq -cn --arg q "$text" --arg cwd "$PWD" --argjson ts "$ts" --arg id "$ts" \
-        '{kind:"consult", id:$id, ts:$ts, cwd:$cwd, q:$q}' >> "$DATA/feed/$sid.jsonl"
-      notify "adash consult: $text"
-      poke "$sid"; echo "consult logged, researcher pinged. Keep going on anything not blocked by this."
-    fi ;;
+    jq -cn --arg t "$text" --arg cwd "$PWD" --argjson ts "$ts" \
+      '{kind:"report", ts:$ts, cwd:$cwd, text:$t}' >> "$DATA/feed/$sid.jsonl"
+    poke "$sid"; echo "report logged, manager is tidying it up" ;;
   ''|-h|--help|help)
     echo 'usage:'
-    echo '  adash report  "<one line status>"'
-    echo '  adash consult "<decision question, with the tradeoff>"'
-    echo '  adash serve                          # start the dashboard server' ;;
+    echo '  adash report "<one line status>"'
+    echo '  adash serve                        # start the dashboard server' ;;
   *)
-    echo "adash: unknown subcommand '$sub' (report|consult|serve)" >&2; exit 1 ;;
+    echo "adash: unknown subcommand '$sub' (report|serve)" >&2; exit 1 ;;
 esac
