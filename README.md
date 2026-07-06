@@ -54,16 +54,16 @@ claude                     # default: reporting on
 ADASH=0 claude             # start this session silenced
 ```
 
-Inside a running session, toggle it with a command (the worker or you can run these):
+Inside a running session, use the slash commands:
 
 ```
-adash off      # pause: no reports go out, no dashboard messages come in
-adash on       # resume reporting
-adash status   # show the current state
+/adash:off       # pause: no reports go out, no dashboard messages come in
+/adash:on        # resume reporting
+/adash:status    # show the current state
 ```
 
 To flip the default to off and watch only chosen sessions, export `ADASH=0` in your shell profile,
-then turn on the ones you want with `ADASH=1 claude` or `adash on` mid-session.
+then turn on the ones you want with `ADASH=1 claude` or `/adash:on` mid-session.
 
 ## Run the dashboard server (separate, long-running)
 
@@ -122,6 +122,8 @@ plugins/adash/
   hooks/hooks.json                 SessionStart inject + PostToolUse back-channel
   hooks/session-inject.sh          injects the reporting instruction at session start
   hooks/drain-inbox.sh             delivers dashboard messages into the worker
+  commands/                        slash commands: /adash:on /adash:off /adash:status
+  scripts/toggle.sh                writes this session's on/off state (used by the commands)
   skills/adash/SKILL.md            on-demand help
   server/server.mjs                always-on server: HTTP UI, manager scheduler, aging
   server/improve.mjs               one manager pass (report + prior card to improved card)
