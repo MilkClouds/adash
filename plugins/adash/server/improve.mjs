@@ -47,8 +47,14 @@ const nowISO = new Date().toISOString();
 const prompt = `You are the Manager of a live agent-status dashboard. A research agent ("the worker") posts terse status reports. Maintain ONE clear STATUS CARD for it and improve the worker's terse/messy reports into something a researcher reads at a glance.
 
 Output the FULL updated card and NOTHING else. Write the entire card in plain English (translate the worker's reports if they are in another language). Do NOT use em dashes or other AI-tell stylistic patterns; use commas, colons, or short sentences. Rules:
-- Start with a YAML frontmatter block delimited by ---. Keys: session (${sid}), status (one of active|waiting|blocked|done), headline (one line: what it is doing now), updated (${nowISO}).
-- Body sections in order:
+- Start with a YAML frontmatter block, then the body. Use EXACTLY this shape, with the closing --- on its own line before the body. Do NOT wrap the whole card in ---; the fences enclose ONLY these four keys:
+---
+session: ${sid}
+status: <one of active|waiting|blocked|done>
+headline: <one line: what it is doing now>
+updated: ${nowISO}
+---
+- Body sections in order (after the closing ---):
   "## Now": 1-3 lines, current focus.
   "## History": newest first, at most 8 bullets, each "HH:MM  fact"; merge or drop the oldest to stay at 8.
   "## Needs from you": the worker reports tersely and vaguely. If a report mentions something concrete but omits detail a researcher would want (e.g. "ran a sweep" without how many configs or which model; "results look off" without which metric or the actual numbers; "reduced batch" without whether it helped), ask ONE short specific question as a bullet. At most 2 bullets, only when the answer would materially improve the card; else write "none".
@@ -77,6 +83,7 @@ let card = existsSync(tmpOut) ? readFileSync(tmpOut,'utf8').trim() : '';
 const fm = card.indexOf('---');
 if (fm > 0) card = card.slice(fm);                    // strip any accidental preamble
 if (!card.startsWith('---') || card.length < 20) { console.error(`[improve ${sid}] bad card output; keeping prior`); safeUnlink(tmpOut); process.exit(1); }
+card = normalizeCard(card);                            // tolerate codex mis-fencing the frontmatter
 
 writeFileSync(tmpCard, card+'\n');
 renameSync(tmpCard, cardFile);                         // atomic
@@ -98,3 +105,24 @@ safeUnlink(tmpOut);
 process.exit(0);
 
 function safeUnlink(f){ try{ if(existsSync(f)) unlinkSync(f); }catch{} }
+
+// Force well-formed frontmatter. codex sometimes fails to close the --- fence and
+// wraps the whole card, which makes the server read an empty body. Rebuild it:
+// keep the leading key:value lines as frontmatter, everything from the first ## as
+// body, and drop a stray trailing --- fence.
+function normalizeCard(raw){
+  const lines = raw.replace(/\r/g,'').split('\n');
+  let i = 0;
+  if (lines[i] !== undefined && lines[i].trim() === '---') i++;   // drop opening fence
+  const fm = [];
+  for (; i < lines.length; i++){
+    const l = lines[i];
+    if (l.trim() === '---') { i++; break; }                        // explicit close
+    if (/^\s*#{1,6}\s/.test(l)) break;                             // body started with no close
+    if (/^[A-Za-z_][\w -]*:\s?/.test(l.trim())) fm.push(l.trim()); // a frontmatter key
+    else if (l.trim() === '') continue;
+    else break;                                                    // unexpected -> body starts
+  }
+  const body = lines.slice(i).join('\n').trim().replace(/\n?-{3,}\s*$/,'').trim();
+  return `---\n${fm.join('\n')}\n---\n\n${body}`;
+}
