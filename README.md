@@ -86,6 +86,13 @@ adash report "started 12-layer transformer run, data roughly prepared"
 adash report "epoch 3 done, val loss 0.42, moving to fine-tune"
 ```
 
+## Removing stale sessions
+
+There is no automatic dead-session detection. Each card shows how long since its last update and dims
+when stale, so you can see which are old. Click the × on a card to remove that session (its feed, card,
+inbox, and state are purged). If the session is actually still alive, it reappears on its next report,
+so removing is safe.
+
 ## Configuration (environment)
 
 | var | default | meaning |
@@ -125,7 +132,7 @@ plugins/adash/
   commands/                        slash commands: /adash:on /adash:off /adash:status
   scripts/toggle.sh                writes this session's on/off state (used by the commands)
   skills/adash/SKILL.md            on-demand help
-  server/server.mjs                always-on server: HTTP UI, manager scheduler, aging
+  server/server.mjs                always-on server: HTTP UI, manager scheduler, delete
   server/improve.mjs               one manager pass (report + prior card to improved card)
   server/index.html                dashboard UI
 ```

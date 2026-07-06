@@ -25,6 +25,8 @@
   .send button{background:var(--acc);border:0;color:#04122e;font-weight:600;border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit}
   .empty{color:var(--dim);font-size:13px;padding:6px 0}
   .dot{width:7px;height:7px;border-radius:50%;background:#3ad07a;display:inline-block} .off{background:#ff7a94}
+  .del{background:transparent;border:1px solid var(--bd);color:var(--dim);border-radius:6px;padding:0 7px;cursor:pointer;font:inherit;line-height:1.7}
+  .del:hover{color:#ff7a94;border-color:#ff7a94}
 </style>
 </head>
 <body>
@@ -52,17 +54,21 @@ function md(body){ // tiny markdown: ## -> h4, - bullets -> ul, else p
 async function send(sid,inp){ const t=inp.value.trim(); if(!t)return; inp.value=''; inp.disabled=true;
   await fetch('/inbox/'+encodeURIComponent(sid),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t})}).catch(()=>{});
   inp.disabled=false; inp.placeholder='sent ✓'; setTimeout(()=>inp.placeholder='message this worker...',1500); }
+async function del(sid){ if(!confirm('Remove this worker from the dashboard? If it is still alive it reappears on its next report.'))return;
+  await fetch('/delete/'+encodeURIComponent(sid),{method:'POST'}).catch(()=>{}); tick(); }
 function workerCard(w){
   const stale = w.ageMs>180000 && !w.pending;
   const el=document.createElement('div'); el.className='card'+(stale?' stale':'');
   el.innerHTML=`<div class="row"><span class="badge st-${w.status}">${esc(w.status)}</span>
-    <span class="age">${w.pending?'':'updated '+ago(w.ageMs)+' ago'}</span></div>
+    <span class="age">${w.pending?'':'updated '+ago(w.ageMs)+' ago'}</span>
+    <button class="del" title="Remove this worker">&times;</button></div>
     <h3>${esc(w.headline)||'<span style=color:#9aa3b2>...</span>'}</h3>
     <div class="body">${md(w.body)}</div>
     <div class="send"><input placeholder="message this worker..." /><button>Send</button></div>
     <div style="color:#4b525f;font-size:11px;margin-top:6px">${esc(w.sid)}</div>`;
-  const inp=el.querySelector('input'), btn=el.querySelector('button');
+  const inp=el.querySelector('input'), btn=el.querySelector('.send button');
   btn.onclick=()=>send(w.sid,inp); inp.onkeydown=e=>{if(e.key==='Enter')send(w.sid,inp);};
+  el.querySelector('.del').onclick=()=>del(w.sid);
   return el;
 }
 async function tick(){

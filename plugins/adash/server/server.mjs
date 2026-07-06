@@ -4,7 +4,7 @@
 //  - watches feed/ and runs the Manager (improve.mjs) per session (cap N, per-sid serial)
 //  - POST /inbox/<sid> (human intervention), /poke/<sid>
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, appendFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, appendFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -67,6 +67,17 @@ function buildState(){
   return { now, workers };
 }
 
+// remove every artifact for one session (human-driven "delete this card"). If the
+// session is still alive it reappears on its next report, so this is non-destructive.
+function purgeWorker(sid){
+  for (const d of ['feed','cards','tmp','inbox','state']){
+    const dir = path.join(DASH,d); let names;
+    try { names = readdirSync(dir); } catch { continue; }
+    for (const n of names) if (n===sid || n.startsWith(sid+'.'))
+      try { unlinkSync(path.join(dir,n)); } catch {}
+  }
+}
+
 // ---- HTTP ----
 const readBody = req => new Promise(res=>{ let b=''; req.on('data',c=>b+=c); req.on('end',()=>res(b)); });
 const send = (res,code,type,body)=>{ res.writeHead(code,{'Content-Type':type}); res.end(body); };
@@ -91,6 +102,10 @@ createServer(async (req,res)=>{
     }
     if (req.method==='POST' && (m=p.match(/^\/poke\/([^/]+)$/)) && sidRe.test(m[1])){
       scan();
+      return send(res,200,'application/json','{"ok":true}');
+    }
+    if (req.method==='POST' && (m=p.match(/^\/delete\/([^/]+)$/)) && sidRe.test(m[1])){
+      purgeWorker(m[1]);
       return send(res,200,'application/json','{"ok":true}');
     }
     send(res,404,'text/plain','not found');
