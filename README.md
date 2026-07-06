@@ -44,17 +44,17 @@ Scope it with `--scope user|project|local` if you do not want it in every sessio
 
 ## Run the dashboard server (separate, long-running)
 
-The server is a standing process, so it lives outside the plugin lifecycle. Clone the repo and run it
-once, for example in tmux or a systemd user unit:
+The dashboard is one long-running process that lives outside the plugin lifecycle. With Node
+installed you can start it straight from GitHub, no clone needed:
 
 ```
-git clone https://github.com/MilkClouds/adash ~/GitHub/adash
-ln -sf ~/GitHub/adash/plugins/adash/bin/adash ~/.local/bin/adash
-adash serve                                # http://127.0.0.1:4319
-AGENT_DASHBOARD_HOST=0.0.0.0 adash serve   # expose on the LAN (trusted networks only)
+npx -y github:MilkClouds/adash serve                              # http://127.0.0.1:4319
+AGENT_DASHBOARD_HOST=0.0.0.0 npx -y github:MilkClouds/adash serve  # expose on the LAN (trusted networks only)
 ```
 
-Or without a symlink: `node ~/GitHub/adash/plugins/adash/server/server.mjs`.
+Run it under tmux or a systemd user unit so it stays up; npx caches the fetch after the first run.
+Inside a session that already has the plugin installed, `adash` is on your PATH, so `adash serve`
+works too.
 
 ## Use (inside a worker session)
 

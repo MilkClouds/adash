@@ -6,5 +6,6 @@
     "name": "MilkClouds"
   },
   "homepage": "https://github.com/MilkClouds/adash",
-  "repository": "https://github.com/MilkClouds/adash"
+  "repository": "https://github.com/MilkClouds/adash",
+  "license": "MIT"
 }
