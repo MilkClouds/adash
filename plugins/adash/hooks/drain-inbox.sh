@@ -9,6 +9,9 @@ input="$(cat)"
 # fast session_id extract without spawning jq
 sid="${input#*\"session_id\":\"}"; sid="${sid%%\"*}"
 case "$sid" in ''|*[!A-Za-z0-9._-]*) exit 0;; esac
+# per-session on/off: an explicit `adash on/off` state file wins, else $ADASH (default on)
+st="${ADASH:-1}"; [ -f "$DASH/state/$sid" ] && st="$(cat "$DASH/state/$sid" 2>/dev/null || echo on)"
+case "$st" in 0|off|OFF|Off|false|FALSE|False|no|NO|No) exit 0;; esac
 inbox="$DASH/inbox/$sid.jsonl"
 [ -s "$inbox" ] || exit 0            # cheap common-case exit, no jq, no work
 # --- something to deliver: now do the heavier formatting ---

@@ -10,6 +10,7 @@ description: Report an agent's progress to a researcher's live dashboard using t
 ## Commands
 
 - `adash report "<one line>"`: append a status report. The manager rewrites it into a card; you do not need to write it well. Report at natural breakpoints (a step finished, a change of direction).
+- `adash on` / `adash off` / `adash status`: turn this session's reporting on or off, or show the state. This overrides the `ADASH` launch default. While off, nothing is reported and no dashboard messages arrive.
 - `adash serve`: start the dashboard web server. The researcher runs this, not the worker.
 
 ## Back-channel

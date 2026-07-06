@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # adash: agent-dashboard client + server launcher.
 #   adash report "<one line status>"    append a status report (server's Manager improves it)
+#   adash on | off | status             per-session reporting switch (overrides $ADASH)
 #   adash serve                         start the dashboard server (this stays running)
 set -euo pipefail
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
@@ -10,23 +11,37 @@ PORT="${AGENT_DASHBOARD_PORT:-4319}"
 sub="${1:-}"; shift 2>/dev/null || true
 
 poke(){ curl -s -m 1 -X POST "http://127.0.0.1:$PORT/poke/$1" >/dev/null 2>&1 || true; }
+need_sid(){ local s="${CODEX_COMPANION_SESSION_ID:-}"; case "$s" in ''|*[!A-Za-z0-9._-]*) echo "adash: no or invalid session id (CODEX_COMPANION_SESSION_ID)" >&2; exit 1;; esac; printf '%s' "$s"; }
+# resolved on/off: an explicit `adash on/off` state file wins, else $ADASH (default on)
+is_off(){ local f="$DATA/state/$1" v; if [ -f "$f" ]; then v="$(cat "$f" 2>/dev/null || echo on)"; else v="${ADASH:-1}"; fi
+  case "$v" in 0|off|OFF|Off|false|FALSE|False|no|NO|No) return 0;; *) return 1;; esac; }
 
 case "$sub" in
   serve)
     exec node "$ROOT/server/server.mjs" "$@" ;;
   report)
-    sid="${CODEX_COMPANION_SESSION_ID:-}"
-    case "$sid" in ''|*[!A-Za-z0-9._-]*) echo "adash: no or invalid session id (CODEX_COMPANION_SESSION_ID)" >&2; exit 1;; esac
+    sid="$(need_sid)" || exit 1
+    if is_off "$sid"; then echo "adash: reporting is off for this session; run 'adash on' to resume" >&2; exit 0; fi
     text="${*:-}"
     [ -n "$text" ] || { echo 'usage: adash report "<one line status>"' >&2; exit 1; }
     mkdir -p "$DATA/feed"; ts="$(date +%s%3N)"
     jq -cn --arg t "$text" --arg cwd "$PWD" --argjson ts "$ts" \
       '{kind:"report", ts:$ts, cwd:$cwd, text:$t}' >> "$DATA/feed/$sid.jsonl"
     poke "$sid"; echo "report logged, manager is tidying it up" ;;
+  on)
+    sid="$(need_sid)" || exit 1; mkdir -p "$DATA/state"; printf 'on\n' > "$DATA/state/$sid"
+    echo 'adash: reporting ON for this session. At natural breakpoints (a step finished, a change of direction) run: adash report "<one line>". A manager tidies it into a card on the dashboard.' ;;
+  off)
+    sid="$(need_sid)" || exit 1; mkdir -p "$DATA/state"; printf 'off\n' > "$DATA/state/$sid"
+    echo 'adash: reporting OFF for this session. No reports go out and no dashboard messages come in until you run: adash on.' ;;
+  status)
+    sid="$(need_sid)" || exit 1
+    if is_off "$sid"; then echo 'adash: off'; else echo 'adash: on'; fi ;;
   ''|-h|--help|help)
     echo 'usage:'
     echo '  adash report "<one line status>"'
+    echo '  adash on | off | status            # per-session reporting switch'
     echo '  adash serve                        # start the dashboard server' ;;
   *)
-    echo "adash: unknown subcommand '$sub' (report|serve)" >&2; exit 1 ;;
+    echo "adash: unknown subcommand '$sub' (report|on|off|status|serve)" >&2; exit 1 ;;
 esac

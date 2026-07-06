@@ -42,6 +42,29 @@ Installing wires the session side automatically, with no edit to your CLAUDE.md 
 
 Scope it with `--scope user|project|local` if you do not want it in every session.
 
+## Turn it on or off per session
+
+Reporting is on by default. There are two levers, and an explicit command always wins over the
+environment default.
+
+At launch, set `ADASH`:
+
+```
+claude                     # default: reporting on
+ADASH=0 claude             # start this session silenced
+```
+
+Inside a running session, toggle it with a command (the worker or you can run these):
+
+```
+adash off      # pause: no reports go out, no dashboard messages come in
+adash on       # resume reporting
+adash status   # show the current state
+```
+
+To flip the default to off and watch only chosen sessions, export `ADASH=0` in your shell profile,
+then turn on the ones you want with `ADASH=1 claude` or `adash on` mid-session.
+
 ## Run the dashboard server (separate, long-running)
 
 The dashboard is one long-running process that lives outside the plugin lifecycle. With Node
@@ -67,6 +90,7 @@ adash report "epoch 3 done, val loss 0.42, moving to fine-tune"
 
 | var | default | meaning |
 |-----|---------|---------|
+| `ADASH`                | `1` (on)             | per-session switch (worker side); `0`/`off` silences the session |
 | `AGENT_DASHBOARD_DIR`  | `~/.agent-dashboard` | runtime data (feed, cards, inbox) |
 | `AGENT_DASHBOARD_HOST` | `127.0.0.1`          | server bind address |
 | `AGENT_DASHBOARD_PORT` | `4319`               | server port |
