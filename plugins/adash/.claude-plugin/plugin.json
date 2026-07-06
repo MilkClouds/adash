@@ -4,5 +4,7 @@
   "description": "Agent status dashboard: workers report, a cheap model tidies the reports into cards, a web UI shows them, with a back-channel to intervene.",
   "author": {
     "name": "MilkClouds"
-  }
+  },
+  "homepage": "https://github.com/MilkClouds/adash",
+  "repository": "https://github.com/MilkClouds/adash"
 }

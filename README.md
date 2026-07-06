@@ -28,7 +28,7 @@ cost stays around a fraction of a cent per report.
 ## Install (Claude Code plugin)
 
 ```
-/plugin marketplace add ~/GitHub/adash
+/plugin marketplace add MilkClouds/adash
 /plugin install adash@adash
 ```
 
@@ -44,10 +44,11 @@ Scope it with `--scope user|project|local` if you do not want it in every sessio
 
 ## Run the dashboard server (separate, long-running)
 
-The server is a standing process, so it lives outside the plugin lifecycle. Run it once, for example
-in tmux or a systemd user unit. For convenience on the shell PATH:
+The server is a standing process, so it lives outside the plugin lifecycle. Clone the repo and run it
+once, for example in tmux or a systemd user unit:
 
 ```
+git clone https://github.com/MilkClouds/adash ~/GitHub/adash
 ln -sf ~/GitHub/adash/plugins/adash/bin/adash ~/.local/bin/adash
 adash serve                                # http://127.0.0.1:4319
 AGENT_DASHBOARD_HOST=0.0.0.0 adash serve   # expose on the LAN (trusted networks only)

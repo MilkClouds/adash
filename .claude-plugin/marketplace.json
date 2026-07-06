@@ -1,7 +1,8 @@
 {
   "name": "adash",
   "owner": {
-    "name": "MilkClouds"
+    "name": "MilkClouds",
+    "url": "https://github.com/MilkClouds/adash"
   },
   "metadata": {
     "description": "Agent status dashboard for Claude Code sessions.",
